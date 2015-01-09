@@ -1,0 +1,23 @@
+{
+  "author": {
+    "name": "David Herron",
+    "email": "david@davidherron.com",
+    "url": "http://davidherron.com"
+  },
+  "name": "globfs",
+  "description": "Glob oriented file system operations, extending fs package",
+  "homepage": "https://github.com/robogeek/globfs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robogeek/globfs.git"
+  },
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=0.10.1"
+  },
+  "dependencies": {
+  	"async": "*",
+  	"fs-extra": "*",
+  	"glob": "*"
+  }
+}
