@@ -15,7 +15,7 @@ In your application, put this at the top
 
 # Methods
 
-    operate(basedirs, patterns, operation, done)
+    globfs.operate(basedirs, patterns, operation, done)
 
 This is a base method from which one can implement many other methods.  It also introduced a couple concepts used in the rest of the methods.
 
@@ -45,7 +45,7 @@ For example:
 
 collects all files matching the patterns within the basedirs.
 
-    copy(basedirs, patterns, destdir, options, done)
+    globfs.copy(basedirs, patterns, destdir, options, done)
 
 Copies files from the `basedirs` directories (as above) matching one of the `patterns` (as above) to `destdir`.
 
@@ -69,7 +69,7 @@ Copies just files with extension `.md` or `.js` into the directory named `n2`.
 
 Copies ALL files into the directory named `n2all`.
 
-    rm(basedirs, patterns, options, done)
+    globfs.rm(basedirs, patterns, options, done)
 
 Deletes files from the `basedirs` directories (as above) matching one of the `patterns` (as above).
 
@@ -85,8 +85,8 @@ The `done` argument is a callback function provided by the caller which is calle
 
 Deletes just the files with the extension `.js` from the directory `n2all`.
 
-    chmod(basedirs, patterns, newmode, options, done)
-    chown(basedirs, patterns, uid, gid, options, done)
+    globfs.chmod(basedirs, patterns, newmode, options, done)
+    globfs.chown(basedirs, patterns, uid, gid, options, done)
 
 Changes file permissions or file ownership of files in the `basedirs` directories (as above) matching one of the `patterns` (as above).
 
