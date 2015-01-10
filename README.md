@@ -23,7 +23,16 @@ The `basedirs` argument is a list of directories to search.  This can either be 
 
 The `patterns` argument is a list of glob patterns with which to search.  This can either be a String, or an Array of String's.
 
-The `operation` argument is a callback function provided by the caller with the signature `function(basedir, fpath, fini)` and is called on each file matched by the glob's.  The function is required to call the `fini` function with the signature `function(err, result)`.  The overall purpose is to collect a subset of the files matched by the glob.  To include the file in that list, ensure the `result` parameter is non-null, or make it null to eliminate that file.
+The `operation` argument is a callback function provided by the caller with the signature `function(basedir, fpath, fini)` and is called on each file matched by the glob's.  The function is required to call the `fini` function with the signature `function(err, result)`.  
+
+The `fini` function indicates one of two things :- 
+
+* Is there an error with that file
+* Allows the caller to process the file and supply some data
+
+The `operate` function collects all `result` objects, supplying them through the `done` method.  If the called function does not supply a `result` object, then the file is eliminated from the results array.  Hence, this is the minimal `fini` function:
+
+    globfs.operate(..., ..., function(basedir, fpath, fini) { fini(null, fpath); }, ...);
 
 The `done` argument is a callback function provided by the caller which is called once `operate` is finished.  It has the signature `function(err, results)`.  The results object is an Array containing information about each matching file.  
 
@@ -37,13 +46,13 @@ Each array element is an object with fields
 
 For example: 
 
-    globfs.operate(basedirs, patterns,
+    globfs.operate([ 'dir', 'dir2', 'dir3' ], [ '**/*.md', '**/*.js' ],
 		function(basedir, fpath, fini) { fini(null, fpath); },
 		function(err, results) {
 			util.log(util.inspect(results));
 		});
 
-collects all files matching the patterns within the basedirs.
+collects all files with extension `.md` or `.js` within the basedirs.
 
     globfs.copy(basedirs, patterns, destdir, options, done)
 
@@ -67,7 +76,7 @@ Copies just files with extension `.md` or `.js` into the directory named `n2`.
 			else util.log('done');
 		});
 
-Copies ALL files into the directory named `n2all`.
+Copies ALL files into the directory named `n2all`.  The first pattern tries to match every file, but the next two patterns are required to match files or directories whose name begins with `"."`.
 
     globfs.rm(basedirs, patterns, options, done)
 
@@ -100,7 +109,7 @@ The `done` argument is a callback function provided by the caller which is calle
 			else util.log('done');
 		});
 
-Changes permissions to read-only for all files with extension `.js` in the directory `n2all`.
+Changes permissions to read-only just for files with extension `.js` in the directory `n2all`.
 
     globfs.chown('n2all', '**/*.js', 666, 666,
 		function(err) {
