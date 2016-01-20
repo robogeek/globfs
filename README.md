@@ -13,6 +13,28 @@ In your application, put this at the top
 
     var globfs = require('globfs');
 
+There is also a command line tool, globfs, that's invoked this way:
+
+```
+$ globfs --help
+
+  Usage: globfs [options] [command]
+
+  Commands:
+
+    copy <srcdir> <destdir> [patterns...]  Copy stuff from one directory to another
+    rm <dir> [patterns...]                 Delete stuff in a directory
+    chmod <dir> <newmode> [patterns...]    Change permissions of stuff in a directory
+    chown <dir> <uid> <gid> [patterns..]   Change ownership of stuff in a directory
+
+  Options:
+
+    -h, --help     output usage information
+    -V, --version  output the version number
+```
+
+These commands correspond to the methods documented below.  
+
 # Methods
 
     globfs.operate(basedirs, patterns, operation, done)
@@ -118,3 +140,5 @@ Changes permissions to read-only just for files with extension `.js` in the dire
 		});
 
 Changes the ownership of files with extension `.js` in the directory `n2all` to uid=666 and gid=666.
+
+

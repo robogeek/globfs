@@ -1,4 +1,6 @@
 
+'use strict';
+
 var glob  = require('glob');
 var async = require('async');
 var fs    = require('fs-extra');
@@ -97,6 +99,9 @@ module.exports.operate = function(basedirs, patterns, operation, done) {
  */
 
 module.exports.copy = function(basedirs, patterns, destdir, options, done) {
+    
+    // util.log('copy '+ util.inspect(basedirs) +' '+ util.inspect(patterns) +' '+ destdir);
+    
 	if (typeof basedirs === 'string') {
 		var b = basedirs;
 		basedirs = [ b ];
@@ -232,7 +237,7 @@ module.exports.chmod = function(basedirs, patterns, newmode, options, done) {
 	}
 	
 	if (typeof newmode !== 'number') {
-		done(new Error('incorrect newmode given '+ util.inspect(destdir)));
+		done(new Error('incorrect newmode given '+ util.inspect(newmode)));
 	} else {
 	
 		module.exports.operate(basedirs, patterns, 
