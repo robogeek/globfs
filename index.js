@@ -1,11 +1,11 @@
 
 'use strict';
 
-var glob  = require('glob');
-var async = require('async');
-var fs    = require('fs-extra');
-var util  = require('util');
-var path  = require('path');
+const glob  = require('glob');
+const async = require('async');
+const fs    = require('fs-extra');
+const util  = require('util');
+const path  = require('path');
 
 /**
  * Glob based generic file operations from single or multiple source directories, and against
@@ -16,7 +16,7 @@ var path  = require('path');
 module.exports.operate = function(basedirs, patterns, operation, done) {
 
 	var results = [];
-	
+
 	if (typeof basedirs === 'string') {
 		var b = basedirs;
 		basedirs = [ b ];
@@ -26,28 +26,28 @@ module.exports.operate = function(basedirs, patterns, operation, done) {
 		var p = patterns;
 		patterns = [ p ];
 	}
-	
+
 	if (typeof operation !== 'function') {
 		done(new Error('incorrect operation function given '+ util.inspect(operation)));
 	} else {
-	
+
 		async.eachSeries(basedirs,
 		function(basedir, nextBasedir) {
 			async.eachSeries(patterns,
 			function(pattern, nextPattern) {
-		
+
 				glob(pattern, {
 					cwd: basedir
 				},
 				function(errGlob, files) {
-					if (errGlob) { 
+					if (errGlob) {
 						// util.error(err);
 						nextPattern(errGlob);
-					} else { 
-					
+					} else {
+
 						async.eachLimit(files, 10,
 						function(fpath, nextFile) {
-				
+
 							operation(basedir, fpath, function(errOp, result) {
 								if (errOp) {
 									results.push({
@@ -72,10 +72,10 @@ module.exports.operate = function(basedirs, patterns, operation, done) {
 							if (errOnFile) nextPattern(errOnFile);
 							else nextPattern();
 						});
-					
+
 					}
 				});
-		
+
 			},
 			function(errOnPattern) {
 				if (errOnPattern) nextBasedir(errOnPattern);
@@ -99,9 +99,9 @@ module.exports.operate = function(basedirs, patterns, operation, done) {
  */
 
 module.exports.copy = function(basedirs, patterns, destdir, options, done) {
-    
+
     // util.log('copy '+ util.inspect(basedirs) +' '+ util.inspect(patterns) +' '+ destdir);
-    
+
 	if (typeof basedirs === 'string') {
 		var b = basedirs;
 		basedirs = [ b ];
@@ -116,11 +116,11 @@ module.exports.copy = function(basedirs, patterns, destdir, options, done) {
 		done = options;
 		options = { };
 	}
-	
+
 	if (typeof destdir !== 'string') {
 		done(new Error('incorrect destdir given '+ util.inspect(destdir)));
 	} else {
-	
+
 		module.exports.operate(basedirs, patterns,
 			function(basedir, fpath, fini) {
 				fini(null, fpath);
@@ -130,11 +130,11 @@ module.exports.copy = function(basedirs, patterns, destdir, options, done) {
 				else {
 					async.eachLimit(files2copy, 10,
 					function(tocopy, next2copy) {
-					
+
 						var fnCopyFrom = path.join(tocopy.basedir, tocopy.path);
 						var fnCopyTo   = path.join(destdir, tocopy.path);
 						var dirCopyTo  = path.dirname(fnCopyTo);
-			
+
 						fs.stat(fnCopyFrom, function(errStat, stats) {
 							if (errStat) next2copy(errStat);
 							else if (! stats.isFile()) next2copy();
@@ -142,9 +142,9 @@ module.exports.copy = function(basedirs, patterns, destdir, options, done) {
 								fs.mkdirs(dirCopyTo, function(err) {
 									if (err) { util.error('mkdirs '+ err); }
 									else {
-					
+
 										// util.log('copy '+ fnCopyFrom +' to '+ fnCopyTo);
-					
+
 										var rd = fs.createReadStream(fnCopyFrom);
 										rd.on("error", function(err) {
 											util.error('createReadStream '+ err);
@@ -162,7 +162,7 @@ module.exports.copy = function(basedirs, patterns, destdir, options, done) {
 								});
 							}
 						});
-					
+
 					},
 					function(errOnCopy) {
 						if (errOnCopy) done(errOnCopy);
@@ -235,12 +235,12 @@ module.exports.chmod = function(basedirs, patterns, newmode, options, done) {
 		done = options;
 		options = { };
 	}
-	
+
 	if (typeof newmode !== 'number') {
 		done(new Error('incorrect newmode given '+ util.inspect(newmode)));
 	} else {
-	
-		module.exports.operate(basedirs, patterns, 
+
+		module.exports.operate(basedirs, patterns,
 			function(basedir, fpath, fini) {
 				fini(null, fpath);
 			},
@@ -279,12 +279,12 @@ module.exports.chown = function(basedirs, patterns, uid, gid, options, done) {
 		done = options;
 		options = { };
 	}
-	
+
 	if (typeof uid !== 'number' || typeof gid !== 'number') {
 		done(new Error('incorrect uid '+ util.inspect(uid) +' or gid '+ util.inspect(gid) +' given'));
 	} else {
-	
-		module.exports.operate(basedirs, patterns, 
+
+		module.exports.operate(basedirs, patterns,
 			function(basedir, fpath, fini) {
 				fini(null, fpath);
 			},
@@ -307,5 +307,3 @@ module.exports.chown = function(basedirs, patterns, uid, gid, options, done) {
 			});
 	}
 };
-
-
