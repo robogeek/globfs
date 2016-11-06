@@ -4,9 +4,7 @@
 /**
  * cli
  *
- * Copyright 2015 David Herron
- *
- * This file is part of epubtools (http://akashacms.com/).
+ * Copyright 2015-2016 David Herron
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -28,61 +26,72 @@ var util      = require('util');
 'use strict';
 
 process.title = 'globfs';
-program.version('0.1.2');
+program.version('0.2.0');
 
 
 program
     .command('copy <srcdir> <destdir> [patterns...]')
+    .option('-v, --verbose', 'Verbose output')
     .description('Copy stuff from one directory to another')
-    .action((srcdir, destdir, patterns) => {
+    .action((srcdir, destdir, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.copy(srcdir, patterns, destdir, {},
-        err => {
-            if (err) { console.error(err.stack); }
-        });
+        globfs.copyAsync(srcdir, patterns, destdir, options)
+        .then(results => { console.log(results); })
+        .catch(err => { console.error(err.stack); });
     });
 
 program
     .command('rm <dir> [patterns...]')
+    .option('-v, --verbose', 'Verbose output')
     .description('Delete stuff in a directory')
-    .action((dir, patterns) => {
+    .action((dir, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.rm(dir, patterns, {},
-        err => {
-            if (err) { console.error(err.stack); }
-        });
+        globfs.rmAsync(dir, patterns, options)
+        .then(results => { console.log(results); })
+        .catch(err => { console.error(err.stack); });
     });
 
 program
     .command('chmod <dir> <newmode> [patterns...]')
+    .option('-v, --verbose', 'Verbose output')
     .description('Change permissions of stuff in a directory')
-    .action((dir, newmode, patterns) => {
+    .action((dir, newmode, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.chmod(dir, newmode, patterns, {},
-        err => {
-            if (err) { console.error(err.stack); }
-        });
+        globfs.chmodAsync(dir, patterns, newmode, options)
+        .then(results => { console.log(results); })
+        .catch(err => { console.error(err.stack); });
     });
 
 program
     .command('chown <dir> <uid> <gid> [patterns..]')
+    .option('-v, --verbose', 'Verbose output')
     .description('Change ownership of stuff in a directory')
-    .action((dir, uid, gid, patterns) => {
+    .action((dir, uid, gid, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.chown(dir, uid, gid, patterns, {},
-        err => {
-            if (err) { console.error(err.stack); }
-        });
+        globfs.chownAsync(dir, patterns, uid, gid, options)
+        .then(results => { console.log(results); })
+        .catch(err => { console.error(err.stack); });
     });
 
+program
+    .command('du <dir> [patterns..]')
+    .option('-v, --verbose', 'Verbose output')
+    .description('Disk utilization of stuff in a directory')
+    .action((dir, patterns, options) => {
+        if (!patterns || patterns.length <= 0) {
+            patterns = [ '**/*' ];
+        }
+        globfs.duAsync(dir, patterns, options)
+        .then(results => { console.log(results); })
+        .catch(err => { console.error(err.stack); });
+    });
 
 program.parse(process.argv);
-
