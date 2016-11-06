@@ -1,19 +1,32 @@
 
+/**
+ * globfs
+ *
+ * Copyright 2015-2016 David Herron
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 'use strict';
 
 const glob  = require('glob');
 const async = require('async');
-const fs    = require('fs-extra');
+const fs    = require('fs-extra-promise');
 const util  = require('util');
 const path  = require('path');
+const co    = require('co');
 
-/**
- * Glob based generic file operations from single or multiple source directories, and against
- * single or multiple glob patterns.
- *
- * The signature for "operation" is function(basedir, path, function(err, result)).
- */
-module.exports.operate = function(basedirs, patterns, operation, done) {
+module.exports.operateAsync = function(basedirs, patterns, operation) {
 
 	var results = [];
 
@@ -27,78 +40,72 @@ module.exports.operate = function(basedirs, patterns, operation, done) {
 		patterns = [ p ];
 	}
 
-	if (typeof operation !== 'function') {
-		done(new Error('incorrect operation function given '+ util.inspect(operation)));
-	} else {
-
-		async.eachSeries(basedirs,
-		function(basedir, nextBasedir) {
-			async.eachSeries(patterns,
-			function(pattern, nextPattern) {
-
-				glob(pattern, {
-					cwd: basedir
-				},
-				function(errGlob, files) {
-					if (errGlob) {
-						// util.error(err);
-						nextPattern(errGlob);
-					} else {
-
-						async.eachLimit(files, 10,
-						function(fpath, nextFile) {
-
-							operation(basedir, fpath, function(errOp, result) {
-								if (errOp) {
-									results.push({
-										error: errOp,
-										basedir: basedir,
-										path: fpath,
-										fullpath: path.join(basedir, fpath)
-									});
-								} else if (result) {
-									results.push({
-										basedir: basedir,
-										path: fpath,
-										fullpath: path.join(basedir, fpath),
-										result: result
-									});
-								}
-								// If no result given, don't include in results
-								nextFile();
-							});
-						},
-						function(errOnFile) {
-							if (errOnFile) nextPattern(errOnFile);
-							else nextPattern();
-						});
-
-					}
-				});
-
-			},
-			function(errOnPattern) {
-				if (errOnPattern) nextBasedir(errOnPattern);
-				else nextBasedir();
-			});
-		},
-		function(errOnBasedir) {
-			if (errOnBasedir) done(errOnBasedir);
-			else done(null, results);
-		});
+	if (typeof operation === 'undefined') {
+		operation = (basedir, fpath, fini) => { fini(null, fpath); };
 	}
+	if (typeof operation !== 'function') {
+		return Promise.reject(new Error('incorrect operation function given '+ util.inspect(operation)));
+	}
+
+	return co(function *() {
+		for (let bsdirnum = 0; bsdirnum < basedirs.length; bsdirnum++) {
+			let basedir = basedirs[bsdirnum];
+			for (let patrnum = 0; patrnum < patterns.length; patrnum++) {
+				let pattern = patterns[patrnum];
+				let files = yield new Promise((resolve, reject) => {
+					glob(pattern, { cwd: basedir },
+						function(errGlob, files) {
+							if (errGlob) reject(errGlob);
+							else resolve(files);
+						});
+				});
+				for (let filenum = 0; filenum < files.length; filenum++) {
+					let fpath = files[filenum];
+					// console.log(`operate checking ${basedir} ${fpath}`);
+					let fresult = yield new Promise((resolve, reject) => {
+						operation(basedir, fpath, (errOp, result) => {
+							// console.log(`operate result ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
+							if (errOp) {
+								resolve({
+									error: errOp,
+									basedir: basedir,
+									path: fpath,
+									fullpath: path.join(basedir, fpath)
+								});
+							} else if (result) {
+								resolve({
+									basedir: basedir,
+									path: fpath,
+									fullpath: path.join(basedir, fpath),
+									result: result
+								});
+							}
+							// If no result given, don't include in results
+							resolve(null);
+						});
+					});
+					if (fresult !== null) results.push(fresult);
+				}
+			}
+		}
+		// console.log(`operate ${util.inspect(results)}`);
+		return results;
+	});
 };
 
-
 /**
- * Glob based file copying from single or multiple source directories, and against
+ * Glob based generic file operations from single or multiple source directories, and against
  * single or multiple glob patterns.
  *
- * The options argument is currently ignored but is suggested to allow caller to
- * tailor the precise actions.
+ * The signature for "operation" is function(basedir, path, function(err, result)).
  */
+module.exports.operate = function(basedirs, patterns, operation, done) {
+	module.exports.operateAsync(basedirs, patterns, operation)
+	.then(results => { done(undefined, results); })
+	.catch(err => { done(err); });
+};
 
-module.exports.copy = function(basedirs, patterns, destdir, options, done) {
+module.exports.copyAsync = function(basedirs, patterns, destdir, options) {
 
     // util.log('copy '+ util.inspect(basedirs) +' '+ util.inspect(patterns) +' '+ destdir);
 
@@ -112,65 +119,89 @@ module.exports.copy = function(basedirs, patterns, destdir, options, done) {
 		patterns = [ p ];
 	}
 
-	if (typeof options === 'function') {
-		done = options;
-		options = { };
-	}
+	if (typeof options === 'undefined') options = {};
 
 	if (typeof destdir !== 'string') {
-		done(new Error('incorrect destdir given '+ util.inspect(destdir)));
-	} else {
-
-		module.exports.operate(basedirs, patterns,
-			function(basedir, fpath, fini) {
-				fini(null, fpath);
-			},
-			function(err, files2copy) {
-				if (err) done(err);
-				else {
-					async.eachLimit(files2copy, 10,
-					function(tocopy, next2copy) {
-
-						var fnCopyFrom = path.join(tocopy.basedir, tocopy.path);
-						var fnCopyTo   = path.join(destdir, tocopy.path);
-						var dirCopyTo  = path.dirname(fnCopyTo);
-
-						fs.stat(fnCopyFrom, function(errStat, stats) {
-							if (errStat) next2copy(errStat);
-							else if (! stats.isFile()) next2copy();
-							else {
-								fs.mkdirs(dirCopyTo, function(err) {
-									if (err) { util.error('mkdirs '+ err); }
-									else {
-
-										// util.log('copy '+ fnCopyFrom +' to '+ fnCopyTo);
-
-										var rd = fs.createReadStream(fnCopyFrom);
-										rd.on("error", function(err) {
-											util.error('createReadStream '+ err);
-										});
-										var wr = fs.createWriteStream(fnCopyTo);
-										wr.on("error", function(err) {
-											util.error('createWriteStream '+ err);
-											next2copy(err);
-										});
-										wr.on("finish", function(ex) {
-											next2copy();
-										});
-										rd.pipe(wr);
-									}
-								});
-							}
-						});
-
-					},
-					function(errOnCopy) {
-						if (errOnCopy) done(errOnCopy);
-						else done();
-					});
-				}
-			});
+		return Promise.reject(new Error('incorrect destdir given '+ util.inspect(destdir)));
 	}
+
+	return co(function *() {
+		var files2copy = yield module.exports.operateAsync(basedirs, patterns);
+		var results = "";
+		for (var copynum = 0; copynum < files2copy.length; copynum++) {
+			var tocopy = files2copy[copynum];
+			// console.log(`copy ${util.inspect(tocopy)}`);
+			var fnCopyFrom = path.join(tocopy.basedir, tocopy.path);
+			var fnCopyTo   = path.join(destdir, tocopy.path);
+			var dirCopyTo  = path.dirname(fnCopyTo);
+
+			var stats = yield fs.statAsync(fnCopyFrom);
+			if (! stats.isFile()) continue;
+			yield fs.mkdirsAsync(dirCopyTo);
+			results += yield new Promise((resolve, reject) => {
+				var rd = fs.createReadStream(fnCopyFrom);
+				rd.on("error", function(err) {
+					console.error('createReadStream '+ err);
+				});
+				var wr = fs.createWriteStream(fnCopyTo);
+				wr.on("error", function(err) {
+					// console.error('createWriteStream '+ err);
+					reject(err);
+				});
+				wr.on("finish", function(ex) {
+					resolve(options.verbose ? `COPY ${fnCopyFrom} ==> ${fnCopyTo}
+` : '');
+				});
+				rd.pipe(wr);
+			});
+		}
+		return results;
+	});
+
+};
+
+/**
+ * Glob based file copying from single or multiple source directories, and against
+ * single or multiple glob patterns.
+ *
+ * The options argument is currently ignored but is suggested to allow caller to
+ * tailor the precise actions.
+ */
+
+module.exports.copy = function(basedirs, patterns, destdir, options, done) {
+	module.exports.copyAsync(basedirs, patterns, destdir, options)
+	.then(results => { done(undefined, results); })
+	.catch(err => { done(err); });
+};
+
+module.exports.rmAsync = function(basedirs, patterns, options) {
+
+	if (typeof basedirs === 'string') {
+		var b = basedirs;
+		basedirs = [ b ];
+	}
+
+	if (typeof patterns === 'string') {
+		var p = patterns;
+		patterns = [ p ];
+	}
+
+	if (typeof options === 'undefined') options = {};
+
+	return co(function *() {
+		var files2rm = yield module.exports.operateAsync(basedirs, patterns);
+		var results = "";
+		for (var rmnum = 0; rmnum < files2rm.length; rmnum++) {
+			var torm = files2rm[rmnum];
+			var fn2Remove = path.join(torm.basedir, torm.path);
+			yield fs.unlinkAsync(fn2Remove);
+			if (options.verbose) {
+				results += `RM ${fn2Remove}
+`;
+			}
+		}
+		return results;
+	});
 };
 
 /**
@@ -182,6 +213,12 @@ module.exports.copy = function(basedirs, patterns, destdir, options, done) {
  */
 
 module.exports.rm = function(basedirs, patterns, options, done) {
+	module.exports.rmAsync(basedirs, patterns, options)
+	.then(results => { done(undefined, results); })
+	.catch(err => { done(err); });
+};
+
+module.exports.chmodAsync = function(basedirs, patterns, newmode, options) {
 	if (typeof basedirs === 'string') {
 		var b = basedirs;
 		basedirs = [ b ];
@@ -192,35 +229,36 @@ module.exports.rm = function(basedirs, patterns, options, done) {
 		patterns = [ p ];
 	}
 
-	if (typeof options === 'function') {
-		done = options;
-		options = { };
+	if (typeof newmode === 'string') newmode = parseInt(newmode, 8);
+	if (typeof newmode !== 'number') {
+		return Promise.reject(new Error('incorrect newmode given '+ util.inspect(newmode)));
 	}
 
-	module.exports.operate(basedirs, patterns,
-		function(basedir, fpath, fini) {
-			fini(null, fpath);
-		},
-		function(err, files2rm) {
-			if (err) done(err);
-			else {
-				async.eachLimit(files2rm, 10,
-				function(torm, next2rm) {
-					var fn2Remove = path.join(torm.basedir, torm.path);
-					fs.unlink(fn2Remove, function(errOnUnlink) {
-						if (errOnUnlink) next2rm(errOnUnlink);
-						else next2rm();
-					});
-				},
-				function(errOnRemove) {
-					if (errOnRemove) done(errOnRemove);
-					else done();
-				});
+	if (typeof options === 'undefined') options = {};
+
+	return co(function *() {
+		var files2chmod = yield module.exports.operateAsync(basedirs, patterns);
+		var results = '';
+		for (var chmodnum = 0; chmodnum < files2chmod.length; chmodnum++) {
+			var tochmod = files2chmod[chmodnum];
+			var fn2chmod = path.join(tochmod.basedir, tochmod.path);
+			yield fs.chmodAsync(fn2chmod, newmode);
+			if (options.verbose) {
+				results += `CHMOD ${fn2chmod} ${newmode.toString(8)}
+`;
 			}
-		});
+		}
+		return results;
+	});
 };
 
 module.exports.chmod = function(basedirs, patterns, newmode, options, done) {
+	module.exports.chmodAsync(basedirs, patterns, newmode, options)
+	.then(results => { done(undefined, results); })
+	.catch(err => { done(err); });
+};
+
+module.exports.chownAsync = function(basedirs, patterns, uid, gid, options) {
 	if (typeof basedirs === 'string') {
 		var b = basedirs;
 		basedirs = [ b ];
@@ -231,40 +269,38 @@ module.exports.chmod = function(basedirs, patterns, newmode, options, done) {
 		patterns = [ p ];
 	}
 
-	if (typeof options === 'function') {
-		done = options;
-		options = { };
+	if (typeof options === 'undefined') options = {};
+
+	if (typeof uid === 'string') uid = parseInt(uid);
+	if (typeof gid === 'string') gid = parseInt(gid);
+	if (typeof uid !== 'number' || typeof gid !== 'number') {
+		return Promise.reject(new Error('incorrect uid '+ util.inspect(uid) +' or gid '+ util.inspect(gid) +' given'));
 	}
 
-	if (typeof newmode !== 'number') {
-		done(new Error('incorrect newmode given '+ util.inspect(newmode)));
-	} else {
-
-		module.exports.operate(basedirs, patterns,
-			function(basedir, fpath, fini) {
-				fini(null, fpath);
-			},
-			function(err, files2chmod) {
-				if (err) done(err);
-				else {
-					async.eachLimit(files2chmod, 10,
-					function(tochmod, next2chmod) {
-						var fn2chmod = path.join(tochmod.basedir, tochmod.path);
-						fs.chmod(fn2chmod, newmode, function(errOnOp) {
-							if (errOnOp) next2chmod(errOnOp);
-							else next2chmod();
-						});
-					},
-					function(errOnChmod) {
-						if (errOnChmod) done(errOnChmod);
-						else done();
-					});
-				}
-			});
-	}
+	return co(function *() {
+		var files2chown = yield module.exports.operateAsync(basedirs, patterns);
+		var results = '';
+		for (var chownnum = 0; chownnum < files2chown.length; chownnum++) {
+			var tochown = files2chown[chownnum];
+			var fn2chown = path.join(tochown.basedir, tochown.path);
+			yield fs.chownAsync(fn2chown, uid, gid);
+			if (options.verbose) {
+				results += `CHOWN ${fn2chown} ${uid} ${gid}
+`;
+			}
+		}
+		return results;
+	});
 };
 
 module.exports.chown = function(basedirs, patterns, uid, gid, options, done) {
+	module.exports.chownAsync(basedirs, patterns, uid, gid, options)
+	.then(results => { done(undefined, results); })
+	.catch(err => { done(err); });
+};
+
+
+module.exports.duAsync = function(basedirs, patterns, options) {
 	if (typeof basedirs === 'string') {
 		var b = basedirs;
 		basedirs = [ b ];
@@ -275,35 +311,33 @@ module.exports.chown = function(basedirs, patterns, uid, gid, options, done) {
 		patterns = [ p ];
 	}
 
-	if (typeof options === 'function') {
-		done = options;
-		options = { };
-	}
+	if (typeof options === 'undefined') options = {};
 
-	if (typeof uid !== 'number' || typeof gid !== 'number') {
-		done(new Error('incorrect uid '+ util.inspect(uid) +' or gid '+ util.inspect(gid) +' given'));
-	} else {
-
-		module.exports.operate(basedirs, patterns,
-			function(basedir, fpath, fini) {
-				fini(null, fpath);
-			},
-			function(err, files2chown) {
-				if (err) done(err);
-				else {
-					async.eachLimit(files2chown, 10,
-					function(tochown, next2chown) {
-						var fn2chown = path.join(tochown.basedir, tochown.path);
-						fs.chown(fn2chown, uid, gid, function(errOnOp) {
-							if (errOnOp) next2chown(errOnOp);
-							else next2chown();
-						});
-					},
-					function(errOnChown) {
-						if (errOnChown) done(errOnChown);
-						else done();
-					});
-				}
-			});
-	}
+	return co(function *() {
+		var totalsz = 0;
+		var files2du = yield module.exports.operateAsync(basedirs, patterns);
+		var sizes = '';
+		// console.log(util.inspect(files2du));
+		for (var dunum = 0; dunum < files2du.length; dunum++) {
+			var todu = files2du[dunum];
+			var fn2du = path.join(todu.basedir, todu.path);
+			var stats = yield fs.statAsync(fn2du);
+			sizes += `${fn2du} ${stats.size}
+`;
+			totalsz += stats.size;
+		}
+		return options.verbose ? (`${sizes}
+TOTAL ${totalsz}`) : totalsz;
+	});
 };
+
+module.exports.du = function(basedirs, patterns, options, done) {
+	module.exports.duAsync(basedirs, patterns, options)
+	.then(results => { done(undefined, results); })
+	.catch(err => { done(err); });
+};
+
+// TODO:
+//    ls
+//    cat
+//    find
