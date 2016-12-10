@@ -59,12 +59,13 @@ module.exports.operateAsync = function(basedirs, patterns, operation) {
 							else resolve(files);
 						});
 				});
+                // console.log(`operateAsync ${util.inspect(files)}`);
 				for (let filenum = 0; filenum < files.length; filenum++) {
 					let fpath = files[filenum];
 					// console.log(`operate checking ${basedir} ${fpath}`);
 					let fresult = yield new Promise((resolve, reject) => {
 						operation(basedir, fpath, (errOp, result) => {
-							// console.log(`operate result ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
+							// console.log(`operateAsync finished operation result= ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
 							if (errOp) {
 								resolve({
 									error: errOp,
@@ -84,11 +85,13 @@ module.exports.operateAsync = function(basedirs, patterns, operation) {
 							resolve(null);
 						});
 					});
+                    // console.log(`operateAsync finished loop ${basedir} ${fpath} ${util.inspect(fresult)}`);
+                    // console.log(`operateAsync ${util.inspect(files)}`);
 					if (fresult !== null) results.push(fresult);
 				}
 			}
 		}
-		// console.log(`operate ${util.inspect(results)}`);
+		// console.log(`operateAsync RESULTS ${util.inspect(results)}`);
 		return results;
 	});
 };
@@ -103,6 +106,26 @@ module.exports.operate = function(basedirs, patterns, operation, done) {
 	module.exports.operateAsync(basedirs, patterns, operation)
 	.then(results => { done(undefined, results); })
 	.catch(err => { done(err); });
+};
+
+module.exports.findAsync = function(basedirs, patterns) {
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
+
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
+
+    return module.exports.operateAsync(basedirs, patterns);
+}
+
+module.exports.find = function(basedirs, patterns, done) {
+    module.exports.findAsync(basedirs, patterns)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 module.exports.copyAsync = function(basedirs, patterns, destdir, options) {

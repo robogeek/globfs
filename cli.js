@@ -28,6 +28,17 @@ var util      = require('util');
 process.title = 'globfs';
 program.version('0.2.0');
 
+program
+    .command('find <srcdir> [patterns...]')
+    .description('Find files based on the pattern(s)')
+    .action((srcdir, patterns) => {
+        if (!patterns || patterns.length <= 0) {
+            patterns = [ '**/*' ];
+        }
+        globfs.findAsync(srcdir, patterns)
+        .then(results => { console.log(results); })
+        .catch(err => { console.error(err.stack); });
+    });
 
 program
     .command('copy <srcdir> <destdir> [patterns...]')

@@ -11,16 +11,16 @@
     "type": "git",
     "url": "https://github.com/robogeek/globfs.git"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "engines": {
-    "node": ">=4.6.0"
+    "node": ">=4.2.0"
   },
   "bin": {
     "globfs": "cli.js"
   },
   "dependencies": {
     "async": "*",
-    "commander": "^2.9.0",
+    "commander": "*",
     "fs-extra-promise": "*",
     "glob": "*",
     "co": "*"

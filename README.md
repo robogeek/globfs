@@ -89,6 +89,17 @@ globfs.operate([ 'dir', 'dir2', 'dir3' ], [ '**/*.md', '**/*.js' ],
 collects all files with extension `.md` or `.js` within the basedirs.
 
 ```
+globfs.findAsync(basedirs, patterns)
+globfs.find(basedirs, patterns, done)
+```
+
+Search in the `basedirs` directories for files matching `patterns`.
+
+The `done` argument is a callback function provided by the caller which is called once all files have been found.  It has the signature `function(err, files)`.
+
+The `findAsync` method of course returns a Promise rather than calling `done`.
+
+```
 globfs.copyAsync(basedirs, patterns, destdir, options)
 globfs.copy(basedirs, patterns, destdir, options, done)
 ```
