@@ -128,6 +128,34 @@ module.exports.find = function(basedirs, patterns, done) {
     .catch(err => { done(err); });
 };
 
+module.exports.findSync = function(basedirs, patterns) {
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
+
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
+
+    var ret = [];
+    for (var basedir of basedirs) {
+        for (var pattern of patterns) {
+            var filez = glob.sync(pattern, { cwd: basedir });
+            // console.log(`globfs findSync ${basedir} ${pattern} found ${util.inspect(filez)}`);
+            for (var fpath of filez) {
+                ret.push({
+                    basedir: basedir,
+                    path: fpath,
+                    fullpath: path.join(basedir, fpath)
+                });
+            }
+        }
+    }
+    return ret;
+};
+
 module.exports.copyAsync = function(basedirs, patterns, destdir, options) {
 
     // util.log('copy '+ util.inspect(basedirs) +' '+ util.inspect(patterns) +' '+ destdir);
