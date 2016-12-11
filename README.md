@@ -91,13 +91,14 @@ collects all files with extension `.md` or `.js` within the basedirs.
 ```
 globfs.findAsync(basedirs, patterns)
 globfs.find(basedirs, patterns, done)
+globfs.findSync(basedirs, patterns)
 ```
 
 Search in the `basedirs` directories for files matching `patterns`.
 
 The `done` argument is a callback function provided by the caller which is called once all files have been found.  It has the signature `function(err, files)`.
 
-The `findAsync` method of course returns a Promise rather than calling `done`.
+The `findAsync` method of course returns a Promise rather than calling `done`.  And the `findSync` method uses synchronous `fs` functions.
 
 ```
 globfs.copyAsync(basedirs, patterns, destdir, options)
