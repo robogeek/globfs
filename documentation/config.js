@@ -7,7 +7,7 @@ const error  = require('debug')('globfs:error-configuration');
 
 const config = new akasha.Configuration();
 
-config.rootURL("https://globfs.akashacms.com");
+config.rootURL("http://robogeek.github.io/globfs/");
 
 config
     .addAssetsDir('assets')

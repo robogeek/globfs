@@ -5,15 +5,19 @@ This Node.js module is an addon to the 'fs' module allowing the programmer to se
 
 # Installation
 
-    npm install --save globfs
+```
+npm install --save globfs
+```
 
-# Usage
+This gives you both a command-line tool, documented below, and a Node.js API, documented here: http://robogeek.github.io/globfs/
 
-In your application, put this at the top
+Installed as shown above, npm installs the command as `./node_modules/.bin/globfs`.  For convenience you should add the path `node_modules/.bin` to your PATH so that commands associated with Node.js modules are easily executed.
 
-    var globfs = require('globfs');
+* Bash: in `$HOME/.profile` add this line: `export PATH="./node_modules/.bin:${PATH}`
+* csh: in `$HOME/.cshrc` add this line: `setenv PATH ./node_modules/.bin:$PATH`
+* Windows: TBD
 
-There is also a command line tool, globfs, that's invoked this way:
+The `globfs` command is invoked this way:
 
 ```
 $ globfs --help
@@ -23,6 +27,7 @@ $ globfs --help
 
   Commands:
 
+    find <srcdir> [patterns...]                      Find files based on the pattern(s)
     copy [options] <srcdir> <destdir> [patterns...]  Copy stuff from one directory to another
     rm [options] <dir> [patterns...]                 Delete stuff in a directory
     chmod [options] <dir> <newmode> [patterns...]    Change permissions of stuff in a directory
@@ -33,200 +38,79 @@ $ globfs --help
 
     -h, --help     output usage information
     -V, --version  output the version number
-
 ```
 
-These commands correspond to the methods documented below.  
+For each of the commands you can run `globfs commandName --help` to get help for that command.
 
-# Methods
-
-```
-globfs.operateAsync(basedirs, patterns, operation)
-globfs.operate(basedirs, patterns, operation, done)
-```
-
-This is a base method from which one can implement many other methods.  It also introduced a couple concepts used in the rest of the methods.
-
-The `basedirs` argument is a list of directories to search.  This can either be a String, or an Array of String's.
-
-The `patterns` argument is a list of glob patterns with which to search.  This can either be a String, or an Array of String's.
-
-The `operation` argument is a callback function provided by the caller with the signature `function(basedir, fpath, fini)` and is called on each file matched by the glob's.  The function is required to call the `fini` function with the signature `function(err, result)`.  
-
-The `fini` function indicates one of two things :-
-
-* Is there an error with that file
-* Allows the caller to process the file and supply some data
-
-If you do not supply an `operation`, one is substituted that causes all files found by the pattern to be added to the results list.
-
-The `operate` function collects all `result` objects, supplying them through the `done` method.  If the called function does not supply a `result` object, then the file is eliminated from the results array.  Hence, this is the minimal `fini` function:
-
-    globfs.operate(..., ..., (basedir, fpath, fini) => { fini(null, fpath); }, ...);
-
-The `done` argument is a callback function provided by the caller which is called once `operate` is finished.  It has the signature `function(err, results)`.  The results object is an Array containing information about each matching file.  
-
-The `operateAsync` method returns a Promise instead of calling `done`, of course.
-
-Each array element is an object with fields
-
-* __error__ non-null if an error occurred on the file
-* __basedir__ the directory within which the file was found
-* __path__ the pathname of the file within `basedir`
-* __fullpath__ the result of `path.join(basedir, path)`
-* __result__ the `result` object provided by the `operate` callback above
-
-For example:
+The commands should be self-explanatory, but here's a few examples
 
 ```
-globfs.operate([ 'dir', 'dir2', 'dir3' ], [ '**/*.md', '**/*.js' ],
-	(basedir, fpath, fini) => { fini(null, fpath); },
-	(err, results) => {
-		util.log(util.inspect(results));
-	});
+$ globfs find node_modules/ '**/*.css'
+[ { basedir: 'node_modules/',
+    path: 'akashacms-embeddables/assets/vendor/Viewer.js/example.local.css',
+    fullpath: 'node_modules/akashacms-embeddables/assets/vendor/Viewer.js/example.local.css',
+    result: 'akashacms-embeddables/assets/vendor/Viewer.js/example.local.css' },
+  { basedir: 'node_modules/',
+    path: 'akashacms-theme-bootstrap/bootstrap/bootstrap3/css/bootstrap-theme.css',
+    fullpath: 'node_modules/akashacms-theme-bootstrap/bootstrap/bootstrap3/css/bootstrap-theme.css',
+    result: 'akashacms-theme-bootstrap/bootstrap/bootstrap3/css/bootstrap-theme.css' },
+  { basedir: 'node_modules/',
+    path: 'akashacms-theme-bootstrap/bootstrap/bootstrap3/css/bootstrap-theme.min.css',
+    fullpath: 'node_modules/akashacms-theme-bootstrap/bootstrap/bootstrap3/css/bootstrap-theme.min.css',
+    result: 'akashacms-theme-bootstrap/bootstrap/bootstrap3/css/bootstrap-theme.min.css' },
+  ... ]
 ```
 
-collects all files with extension `.md` or `.js` within the basedirs.
+The `find` command is useful for finding files.
 
 ```
-globfs.findAsync(basedirs, patterns)
-globfs.find(basedirs, patterns, done)
-globfs.findSync(basedirs, patterns)
+$ globfs copy node_modules node_modules_css '**/*.css'
+
+$ du -sk node_modules node_modules_css
+44364   node_modules
+1068    node_modules_css
 ```
 
-Search in the `basedirs` directories for files matching `patterns`.
-
-The `done` argument is a callback function provided by the caller which is called once all files have been found.  It has the signature `function(err, files)`.
-
-The `findAsync` method of course returns a Promise rather than calling `done`.  And the `findSync` method uses synchronous `fs` functions.
+You can copy selected files from a directory hierarchy, preserving the hierarchy.  In this case we selected just the CSS files, proved by the disk consumption of the resulting directory tree.
 
 ```
-globfs.copyAsync(basedirs, patterns, destdir, options)
-globfs.copy(basedirs, patterns, destdir, options, done)
+$ globfs copy node_modules node_modules_cssjs '**/*.css' '**/*.js'
+
+$ du -sk node_modules node_modules_css node_modules_cssjs
+44364   node_modules
+1068    node_modules_css
+30044   node_modules_cssjs
 ```
 
-Copies files from the `basedirs` directories (as above) matching one of the `patterns` (as above) to `destdir`.
-
-The `options` argument is currently ignored but is meant to be an object tailoring the behavior.
-
-The `done` argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature `function(err)`.
-
-The `copyAsync` method of course returns a Promise rather than calling `done`.
+We can add a second file pattern to copy the JavaScript files, and see that the second directory tree, containing both CSS and JS files, is much bigger.
 
 ```
-globfs.copy('node_modules', [ '**/*.md', '**/*.js' ], 'n2',
-	(err) => {
-		if (err) util.error(err);
-		else util.log('done');
-	});
+$ globfs rm node_modules_cssjs '**/*.js'
+
+$ du -sk node_modules node_modules_css node_modules_cssjs
+44364   node_modules
+1068    node_modules_css
+1064    node_modules_cssjs
 ```
 
-Copies just files with extension `.md` or `.js` into the directory named `n2`.
+The `rm` command deletes selected files.  Deleting the JavaScript files from the previously created directory brings it close in size to the CSS-only directory tree.
 
 ```
-globfs.copy('node_modules', [ '**/*', '**/.*/*', '**/.*' ], 'n2all',
-	(err) => {
-		if (err) util.error(err);
-		else util.log('done');
-	});
+$ globfs rm node_modules_cssjs
 
-globfs.copyAsync('node_modules', [ '**/*', '**/.*/*', '**/.*' ], 'n2all')
-.then(results => { console.log(results); })
-.catch(err => { console.error(err.stack); });
+$ du -sk node_modules node_modules_css node_modules_cssjs
+44368   node_modules
+1068    node_modules_css
+0       node_modules_cssjs
 ```
 
-Copies ALL files into the directory named `n2all`.  The first pattern tries to match every file, but the next two patterns are required to match files or directories whose name begins with `"."`.
+For all the commands, specifying zero glob patterns means the operation works on every file in the hierarchy.  In this case we deleted everything under the directory, leaving it consuming 0 bytes.
 
 ```
-globfs.rmAsync(basedirs, patterns, options)
-globfs.rm(basedirs, patterns, options, done)
+$ globfs du node_modules '**/*.css'
+782248
+$ globfs du node_modules_css '**/*.css'
+782248
 ```
 
-Deletes files from the `basedirs` directories (as above) matching one of the `patterns` (as above).
-
-The `options` argument is currently ignored but is meant to be an object tailoring the behavior.
-
-The `done` argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature `function(err)`.
-
-The `rmAsync` method of course returns a Promise rather than calling `done`.
-
-```
-globfs.rm('n2all', '**/*.js',
-	(err) => {
-		if (err) util.error(err);
-		else util.log('done');
-	});
-
-globfs.rmAsync('n2all', '**/*.js')
-.then(results => { console.log(results); })
-.catch(err => { console.error(err.stack); });
-```
-
-Deletes just the files with the extension `.js` from the directory `n2all`.
-
-```
-globfs.chmodAsync(basedirs, patterns, newmode, options)
-globfs.chownAsync(basedirs, patterns, uid, gid, options)
-globfs.chmod(basedirs, patterns, newmode, options, done)
-globfs.chown(basedirs, patterns, uid, gid, options, done)
-```
-
-Changes file permissions or file ownership of files in the `basedirs` directories (as above) matching one of the `patterns` (as above).
-
-The `options` argument is currently ignored but is meant to be an object tailoring the behavior.
-
-The `done` argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature `function(err)`.
-
-The `chmodAsync` and `chownAsync` methods of course returns a Promise rather than calling `done`.
-
-```
-globfs.chmod('n2all', '**/*.js', 0444,
-	(err) => {
-		if (err) util.error(err);
-		else util.log('done');
-	});
-
-globfs.chmodAsync('n2all', '**/*.js', 0444)
-.then(results => { console.log(results); })
-.catch(err => { console.error(err.stack); });
-```
-
-Changes permissions to read-only just for files with extension `.js` in the directory `n2all`.
-
-```
-globfs.chown('n2all', '**/*.js', 666, 666,
-	(err) => {
-		if (err) util.error(err);
-		else util.log('done');
-	});
-
-
-globfs.chownAsync('n2all', '**/*.js', 666, 666)
-.then(results => { console.log(results); })
-.catch(err => { console.error(err.stack); });
-```
-
-Changes the ownership of files with extension `.js` in the directory `n2all` to uid=666 and gid=666.
-
-```
-globfs.duAsync(basedirs, patterns, options)
-globfs.du(basedirs, patterns, options, done)
-```
-
-Calculates disk utilization for the files matching `basedirs` and `patterns`.  The result provided is the total disk bytes consumed.
-
-The `done` argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature `function(err, results)`.  The `results` is simply a number giving disk usage for the files.
-
-If `options.verbose` is truthy then the `results` instead is a text report listing each file, its size, and the total size.
-
-```
-globfs.du('n2all', '**/*.js',
-	(err, results) => {
-		if (err) util.error(err);
-		else console.log(results);
-	});
-
-globfs.duAsync('n2all', '**/*.js')
-.then(results => { console.log(results); })
-.catch(err => { console.error(err.stack); });
-```
+Remember that the second directory was created by copying all CSS files from the first.  It stands to reason, then, that these two commands tells us an identical figure for disk consumption.

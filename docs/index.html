@@ -11,7 +11,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Globfs</title>
+    <title>Globfs API documentation</title>
 
 
 
@@ -31,7 +31,7 @@
 
 
 
-<meta name="pagename" content="Globfs">
+<meta name="pagename" content="Globfs API documentation">
 
 
 
@@ -41,9 +41,9 @@
 
 
 
-<meta name="date" content="Wed Dec 14 2016 21:53:30 GMT-0800 (PST)">
+<meta name="date" content="Wed Dec 14 2016 22:44:45 GMT-0800 (PST)">
 
-<meta name="DC.title" content="Globfs">
+<meta name="DC.title" content="Globfs API documentation">
 
 
 
@@ -60,11 +60,9 @@
 
 <!-- OpenGraph Meta Tags -->
 	
-<meta name="og:title" content="Globfs">
+<meta name="og:title" content="Globfs API documentation">
 
-<meta name="og:url" content="https://globfs.akashacms.com/index.html">
-
-
+<meta name="og:url" content="http://robogeek.github.io/index.html">
 
 
 
@@ -97,7 +95,9 @@
 
 
 
-    <link rel="canonical" href="https://globfs.akashacms.com/index.html">
+
+
+    <link rel="canonical" href="http://robogeek.github.io/index.html">
 
 <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
 
@@ -117,21 +117,157 @@
   <article itemscope="" itemtype="http://schema.org/Article" class="col-sm-11 panel panel-default">
 
     <div itemprop="name" class="panel-heading">
-      <h1 class="panel-title" align="center">Globfs</h1>
+      <h1 class="panel-title" align="center">Globfs API documentation</h1>
     </div>
 
     <div class="panel-body">
     <div id="breadcrumbTrail">
     <ol class="breadcrumb">
-     <li> <a href="/index.html">Globfs</a> </li>
+     <li> <a href="/index.html">Globfs API documentation</a> </li>
     </ol>
 </div>
-      <p><small><span itemprop="author" itemscope="" itemtype="http://schema.org/Person">By: <span itemprop="name"><a href="https://plus.google.com/+DavidHerron/about" rel="author" itemprop="url">+David Herron</a></span></span>; Date: <span itemprop="datePublished">Wed Dec 14 2016 21:53:30 GMT-0800 (PST)</span></small></p>
+      <p><small><span itemprop="author" itemscope="" itemtype="http://schema.org/Person">By: <span itemprop="name"><a href="https://plus.google.com/+DavidHerron/about" rel="author" itemprop="url">+David Herron</a></span></span>; Date: <span itemprop="datePublished">Wed Dec 14 2016 22:44:45 GMT-0800 (PST)</span></small></p>
       <p><small>Tags: </small></p>
 	  <span itemprop="articleBody">
       
-      <p>Hello, world!</p>
-<p>This is the starting point for Globfs Documentation</p>
+      <p>INSTALLATION: <code>npm install globfs --save</code></p>
+<p>What follows is API documentation.  For the command-line documentation, see: <a href="https://github.com/robogeek/globfs">https://github.com/robogeek/globfs</a></p>
+<p>In your application, put this at the top</p>
+<pre><code>const globfs = require(&apos;globfs&apos;);
+</code></pre>
+<p>This brings in the module.  For every function we have a pair of implementations, offering both the traditional callback API, and an <em>Async</em> version returning a Promise.</p>
+<pre><code>globfs.operateAsync(basedirs, patterns, operation)
+globfs.operate(basedirs, patterns, operation, done)
+</code></pre>
+<p>This is a base method from which one can implement many other methods.  It also introduced a couple concepts used in the rest of the methods.</p>
+<p>The <code>basedirs</code> argument is a list of directories to search.  This can either be a String, or an Array of String&apos;s.</p>
+<p>The <code>patterns</code> argument is a list of glob patterns with which to search.  This can either be a String, or an Array of String&apos;s.</p>
+<p>The <code>operation</code> argument is a callback function provided by the caller with the signature <code>function(basedir, fpath, fini)</code> and is called on each file matched by the glob&apos;s.  The function is required to call the <code>fini</code> function with the signature <code>function(err, result)</code>.</p>
+<p>The <code>fini</code> function indicates one of two things :-</p>
+<ul>
+<li>Is there an error with that file</li>
+<li>Allows the caller to process the file and supply some data</li>
+</ul>
+<p>If you do not supply an <code>operation</code>, one is substituted that causes all files found by the pattern to be added to the results list.</p>
+<p>The <code>operate</code> function collects all <code>result</code> objects, supplying them through the <code>done</code> method.  If the called function does not supply a <code>result</code> object, then the file is eliminated from the results array.  Hence, this is the minimal <code>fini</code> function:</p>
+<pre><code>globfs.operate(..., ..., (basedir, fpath, fini) =&gt; { fini(null, fpath); }, ...);
+</code></pre>
+<p>The <code>done</code> argument is a callback function provided by the caller which is called once <code>operate</code> is finished.  It has the signature <code>function(err, results)</code>.  The results object is an Array containing information about each matching file.</p>
+<p>The <code>operateAsync</code> method returns a Promise instead of calling <code>done</code>, of course.</p>
+<p>Each array element is an object with fields</p>
+<ul>
+<li><strong>error</strong> non-null if an error occurred on the file</li>
+<li><strong>basedir</strong> the directory within which the file was found</li>
+<li><strong>path</strong> the pathname of the file within <code>basedir</code></li>
+<li><strong>fullpath</strong> the result of <code>path.join(basedir, path)</code></li>
+<li><strong>result</strong> the <code>result</code> object provided by the <code>operate</code> callback above</li>
+</ul>
+<p>For example:</p>
+<pre><code>globfs.operate([ &apos;dir&apos;, &apos;dir2&apos;, &apos;dir3&apos; ], [ &apos;**/*.md&apos;, &apos;**/*.js&apos; ],
+	(basedir, fpath, fini) =&gt; { fini(null, fpath); },
+	(err, results) =&gt; {
+		util.log(util.inspect(results));
+	});
+</code></pre>
+<p>collects all files with extension <code>.md</code> or <code>.js</code> within the basedirs.</p>
+<pre><code>globfs.findAsync(basedirs, patterns)
+globfs.find(basedirs, patterns, done)
+globfs.findSync(basedirs, patterns)
+</code></pre>
+<p>Search in the <code>basedirs</code> directories for files matching <code>patterns</code>.</p>
+<p>The <code>done</code> argument is a callback function provided by the caller which is called once all files have been found.  It has the signature <code>function(err, files)</code>.</p>
+<p>The <code>findAsync</code> method of course returns a Promise rather than calling <code>done</code>.  And the <code>findSync</code> method uses synchronous <code>fs</code> functions.</p>
+<pre><code>globfs.copyAsync(basedirs, patterns, destdir, options)
+globfs.copy(basedirs, patterns, destdir, options, done)
+</code></pre>
+<p>Copies files from the <code>basedirs</code> directories (as above) matching one of the <code>patterns</code> (as above) to <code>destdir</code>.</p>
+<p>The <code>options</code> argument is currently ignored but is meant to be an object tailoring the behavior.</p>
+<p>The <code>done</code> argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature <code>function(err)</code>.</p>
+<p>The <code>copyAsync</code> method of course returns a Promise rather than calling <code>done</code>.</p>
+<pre><code>globfs.copy(&apos;node_modules&apos;, [ &apos;**/*.md&apos;, &apos;**/*.js&apos; ], &apos;n2&apos;,
+    (err) =&gt; {
+        if (err) util.error(err);
+        else util.log(&apos;done&apos;);
+    });
+</code></pre>
+<p>Copies just files with extension <code>.md</code> or <code>.js</code> into the directory named <code>n2</code>.</p>
+<pre><code>globfs.copy(&apos;node_modules&apos;, [ &apos;**/*&apos;, &apos;**/.*/*&apos;, &apos;**/.*&apos; ], &apos;n2all&apos;,
+    (err) =&gt; {
+        if (err) util.error(err);
+        else util.log(&apos;done&apos;);
+    });
+
+globfs.copyAsync(&apos;node_modules&apos;, [ &apos;**/*&apos;, &apos;**/.*/*&apos;, &apos;**/.*&apos; ], &apos;n2all&apos;)
+.then(results =&gt; { console.log(results); })
+.catch(err =&gt; { console.error(err.stack); });
+</code></pre>
+<p>Copies ALL files into the directory named <code>n2all</code>.  The first pattern tries to match every file, but the next two patterns are required to match files or directories whose name begins with <code>&quot;.&quot;</code>.</p>
+<pre><code>globfs.rmAsync(basedirs, patterns, options)
+globfs.rm(basedirs, patterns, options, done)
+</code></pre>
+<p>Deletes files from the <code>basedirs</code> directories (as above) matching one of the <code>patterns</code> (as above).</p>
+<p>The <code>options</code> argument is currently ignored but is meant to be an object tailoring the behavior.</p>
+<p>The <code>done</code> argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature <code>function(err)</code>.</p>
+<p>The <code>rmAsync</code> method of course returns a Promise rather than calling <code>done</code>.</p>
+<pre><code>globfs.rm(&apos;n2all&apos;, &apos;**/*.js&apos;,
+    (err) =&gt; {
+        if (err) util.error(err);
+        else util.log(&apos;done&apos;);
+    });
+
+globfs.rmAsync(&apos;n2all&apos;, &apos;**/*.js&apos;)
+.then(results =&gt; { console.log(results); })
+.catch(err =&gt; { console.error(err.stack); });
+</code></pre>
+<p>Deletes just the files with the extension <code>.js</code> from the directory <code>n2all</code>.</p>
+<pre><code>globfs.chmodAsync(basedirs, patterns, newmode, options)
+globfs.chownAsync(basedirs, patterns, uid, gid, options)
+globfs.chmod(basedirs, patterns, newmode, options, done)
+globfs.chown(basedirs, patterns, uid, gid, options, done)
+</code></pre>
+<p>Changes file permissions or file ownership of files in the <code>basedirs</code> directories (as above) matching one of the <code>patterns</code> (as above).</p>
+<p>The <code>options</code> argument is currently ignored but is meant to be an object tailoring the behavior.</p>
+<p>The <code>done</code> argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature <code>function(err)</code>.</p>
+<p>The <code>chmodAsync</code> and <code>chownAsync</code> methods of course returns a Promise rather than calling <code>done</code>.</p>
+<pre><code>globfs.chmod(&apos;n2all&apos;, &apos;**/*.js&apos;, 0444,
+    (err) =&gt; {
+        if (err) util.error(err);
+        else util.log(&apos;done&apos;);
+    });
+
+globfs.chmodAsync(&apos;n2all&apos;, &apos;**/*.js&apos;, 0444)
+.then(results =&gt; { console.log(results); })
+.catch(err =&gt; { console.error(err.stack); });
+</code></pre>
+<p>Changes permissions to read-only just for files with extension <code>.js</code> in the directory <code>n2all</code>.</p>
+<pre><code>globfs.chown(&apos;n2all&apos;, &apos;**/*.js&apos;, 666, 666,
+    (err) =&gt; {
+        if (err) util.error(err);
+        else util.log(&apos;done&apos;);
+    });
+
+
+globfs.chownAsync(&apos;n2all&apos;, &apos;**/*.js&apos;, 666, 666)
+.then(results =&gt; { console.log(results); })
+.catch(err =&gt; { console.error(err.stack); });
+</code></pre>
+<p>Changes the ownership of files with extension <code>.js</code> in the directory <code>n2all</code> to uid=666 and gid=666.</p>
+<pre><code>globfs.duAsync(basedirs, patterns, options)
+globfs.du(basedirs, patterns, options, done)
+</code></pre>
+<p>Calculates disk utilization for the files matching <code>basedirs</code> and <code>patterns</code>.  The result provided is the total disk bytes consumed.</p>
+<p>The <code>done</code> argument is a callback function provided by the caller which is called once all files have been copied.  It has the signature <code>function(err, results)</code>.  The <code>results</code> is simply a number giving disk usage for the files.</p>
+<p>If <code>options.verbose</code> is truthy then the <code>results</code> instead is a text report listing each file, its size, and the total size.</p>
+<pre><code>globfs.du(&apos;n2all&apos;, &apos;**/*.js&apos;,
+    (err, results) =&gt; {
+        if (err) util.error(err);
+        else console.log(results);
+    });
+
+globfs.duAsync(&apos;n2all&apos;, &apos;**/*.js&apos;)
+.then(results =&gt; { console.log(results); })
+.catch(err =&gt; { console.error(err.stack); });
+</code></pre>
 
 	  </span>
       <!-- partial file-name='disqus.html'/ -->
@@ -142,7 +278,10 @@
   </section -->
 </div>
 
-  <!-- partial file-name="site-footer.html"></partial -->
+  <div>
+    Built using <a href="https://akashacms.com">AkashaRender</a>
+</div>
+
 </div>
 <!-- open-graph-promote-images root="article"></open-graph-promote-images -->
 <!-- JavaScript at the bottom for fast page loading -->
