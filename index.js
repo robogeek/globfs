@@ -245,6 +245,8 @@ module.exports.rmAsync = function(basedirs, patterns, options) {
 		for (var rmnum = 0; rmnum < files2rm.length; rmnum++) {
 			var torm = files2rm[rmnum];
 			var fn2Remove = path.join(torm.basedir, torm.path);
+            var stats = yield fs.statAsync(fn2Remove);
+            if (! stats.isFile()) continue;
 			yield fs.unlinkAsync(fn2Remove);
 			if (options.verbose) {
 				results += `RM ${fn2Remove}
