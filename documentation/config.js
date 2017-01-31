@@ -7,6 +7,8 @@ const error  = require('debug')('globfs:error-configuration');
 
 const config = new akasha.Configuration();
 
+// TODO Change this to https, but it requires removing globfs from
+// being under blogfs.akashacms.com 
 config.rootURL("http://robogeek.github.io/globfs/");
 
 config
