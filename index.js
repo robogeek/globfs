@@ -21,74 +21,98 @@
 
 const glob  = require('glob');
 const async = require('async');
-const fs    = require('fs-extra-promise');
+const fs    = require('fs-extra');
 const util  = require('util');
 const path  = require('path');
 const co    = require('co');
 
+function doTracing() {
+    return (typeof process.env.GLOBFS_TRACE !== 'undefined'
+     && process.env.GLOBFS_TRACE !== ""
+     && (
+         process.env.GLOBFS_TRACE === "1"
+      || process.env.GLOBFS_TRACE === "yes"
+      || process.env.GLOBFS_TRACE === "true"
+  ));
+}
+
 module.exports.operateAsync = co.wrap(function* (basedirs, patterns, operation) {
 
-	var results = [];
+    var results = [];
 
-	if (typeof basedirs === 'string') {
-		var b = basedirs;
-		basedirs = [ b ];
-	}
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
 
-	if (typeof patterns === 'string') {
-		var p = patterns;
-		patterns = [ p ];
-	}
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
 
-	if (typeof operation === 'undefined') {
-		operation = (basedir, fpath, fini) => { fini(null, fpath); };
-	}
-	if (typeof operation !== 'function') {
-		throw new Error('incorrect operation function given '+ util.inspect(operation));
-	}
+    if (typeof operation === 'undefined') {
+        operation = (basedir, fpath, fini) => { fini(null, fpath); };
+    }
+    if (typeof operation !== 'function') {
+        throw new Error('incorrect operation function given '+ util.inspect(operation));
+    }
 
-	for (let basedir of basedirs) {
-		for (let pattern of patterns) {
-			let files = yield new Promise((resolve, reject) => {
-				glob(pattern, { cwd: basedir },
-					function(errGlob, files) {
-						if (errGlob) reject(errGlob);
-						else resolve(files);
-					});
-			});
+    var trace = doTracing();
+
+    for (let basedir of basedirs) {
+        for (let pattern of patterns) {
+            let files = yield new Promise((resolve, reject) => {
+                glob(pattern, { cwd: basedir },
+                    function(errGlob, files) {
+                        if (errGlob) reject(errGlob);
+                        else resolve(files);
+                    });
+            });
             // console.log(`operateAsync ${util.inspect(files)}`);
-			for (let fpath of files) {
-				// console.log(`operate checking ${basedir} ${fpath}`);
-				let fresult = yield new Promise((resolve, reject) => {
-					operation(basedir, fpath, (errOp, result) => {
-						// console.log(`operateAsync finished operation result= ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
-						if (errOp) {
-							resolve({
-								error: errOp,
-								basedir: basedir,
-								path: fpath,
-								fullpath: path.join(basedir, fpath)
-							});
-						} else if (result) {
-							resolve({
-								basedir: basedir,
-								path: fpath,
-								fullpath: path.join(basedir, fpath),
-								result: result
-							});
-						}
-						// If no result given, don't include in results
-						resolve(null);
-					});
-				});
+            for (let fpath of files) {
+                // console.log(`operate checking ${basedir} ${fpath}`);
+                let op_start = undefined;
+                if (trace) {
+                    op_start = new Date();
+                }
+                let fresult = yield new Promise((resolve, reject) => {
+                    operation(basedir, fpath, (errOp, result) => {
+                        // console.log(`operateAsync finished operation result= ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
+                        let op_end = trace ? new Date() : undefined;
+                        let op_elapsed = trace ? (op_end - op_start) : undefined;
+                        if (errOp) {
+                            resolve({
+                                error: errOp,
+                                basedir: basedir,
+                                path: fpath,
+                                fullpath: path.join(basedir, fpath),
+                                start: op_start,
+                                end: op_end,
+                                elapsed: op_elapsed
+                            });
+                        } else if (result) {
+                            resolve({
+                                basedir: basedir,
+                                path: fpath,
+                                fullpath: path.join(basedir, fpath),
+                                result: result,
+                                start: op_start,
+                                end: op_end,
+                                elapsed: op_elapsed
+                            });
+                        }
+                        // If no result given, don't include in results
+                        resolve(null);
+                    });
+                });
                 // console.log(`operateAsync finished loop ${basedir} ${fpath} ${util.inspect(fresult)}`);
                 // console.log(`operateAsync ${util.inspect(files)}`);
-				if (fresult !== null) results.push(fresult);
-			}
-		}
-	}
-	// console.log(`operateAsync RESULTS ${util.inspect(results)}`);
-	return results;
+                if (fresult !== null) results.push(fresult);
+            }
+        }
+    }
+    // console.log(`operateAsync RESULTS ${util.inspect(results)}`);
+    return results;
 });
 
 /**
@@ -98,9 +122,9 @@ module.exports.operateAsync = co.wrap(function* (basedirs, patterns, operation) 
  * The signature for "operation" is function(basedir, path, function(err, result)).
  */
 module.exports.operate = function(basedirs, patterns, operation, done) {
-	module.exports.operateAsync(basedirs, patterns, operation)
-	.then(results => { done(undefined, results); })
-	.catch(err => { done(err); });
+    module.exports.operateAsync(basedirs, patterns, operation)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 module.exports.findAsync = function(basedirs, patterns) {
@@ -155,51 +179,51 @@ module.exports.copyAsync = co.wrap(function* (basedirs, patterns, destdir, optio
 
     // util.log('copy '+ util.inspect(basedirs) +' '+ util.inspect(patterns) +' '+ destdir);
 
-	if (typeof basedirs === 'string') {
-		var b = basedirs;
-		basedirs = [ b ];
-	}
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
 
-	if (typeof patterns === 'string') {
-		var p = patterns;
-		patterns = [ p ];
-	}
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
 
-	if (typeof options === 'undefined') options = {};
+    if (typeof options === 'undefined') options = {};
 
-	if (typeof destdir !== 'string') {
-		throw new Error('incorrect destdir given '+ util.inspect(destdir));
-	}
+    if (typeof destdir !== 'string') {
+        throw new Error('incorrect destdir given '+ util.inspect(destdir));
+    }
 
-	var files2copy = yield module.exports.operateAsync(basedirs, patterns);
-	var results = "";
-	for (var tocopy of files2copy) {
-		// console.log(`copy ${util.inspect(tocopy)}`);
-		var fnCopyFrom = path.join(tocopy.basedir, tocopy.path);
-		var fnCopyTo   = path.join(destdir, tocopy.path);
-		var dirCopyTo  = path.dirname(fnCopyTo);
+    var files2copy = yield module.exports.operateAsync(basedirs, patterns);
+    var results = "";
+    for (var tocopy of files2copy) {
+        // console.log(`copy ${util.inspect(tocopy)}`);
+        var fnCopyFrom = path.join(tocopy.basedir, tocopy.path);
+        var fnCopyTo   = path.join(destdir, tocopy.path);
+        var dirCopyTo  = path.dirname(fnCopyTo);
 
-		var stats = yield fs.statAsync(fnCopyFrom);
-		if (! stats.isFile()) continue;
-		yield fs.mkdirsAsync(dirCopyTo);
-		results += yield new Promise((resolve, reject) => {
-			var rd = fs.createReadStream(fnCopyFrom);
-			rd.on("error", function(err) {
-				console.error('createReadStream '+ err);
-			});
-			var wr = fs.createWriteStream(fnCopyTo);
-			wr.on("error", function(err) {
-				// console.error('createWriteStream '+ err);
-				reject(err);
-			});
-			wr.on("finish", function(ex) {
-				resolve(options.verbose ? `COPY ${fnCopyFrom} ==> ${fnCopyTo}
+        var stats = yield fs.stat(fnCopyFrom);
+        if (! stats.isFile()) continue;
+        yield fs.mkdirs(dirCopyTo);
+        results += yield new Promise((resolve, reject) => {
+            var rd = fs.createReadStream(fnCopyFrom);
+            rd.on("error", function(err) {
+                console.error('createReadStream '+ err);
+            });
+            var wr = fs.createWriteStream(fnCopyTo);
+            wr.on("error", function(err) {
+                // console.error('createWriteStream '+ err);
+                reject(err);
+            });
+            wr.on("finish", function(ex) {
+                resolve(options.verbose ? `COPY ${fnCopyFrom} ==> ${fnCopyTo}
 ` : '');
-			});
-			rd.pipe(wr);
-		});
-	}
-	return results;
+            });
+            rd.pipe(wr);
+        });
+    }
+    return results;
 
 });
 
@@ -212,38 +236,38 @@ module.exports.copyAsync = co.wrap(function* (basedirs, patterns, destdir, optio
  */
 
 module.exports.copy = function(basedirs, patterns, destdir, options, done) {
-	module.exports.copyAsync(basedirs, patterns, destdir, options)
-	.then(results => { done(undefined, results); })
-	.catch(err => { done(err); });
+    module.exports.copyAsync(basedirs, patterns, destdir, options)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 module.exports.rmAsync = co.wrap(function* (basedirs, patterns, options) {
 
-	if (typeof basedirs === 'string') {
-		var b = basedirs;
-		basedirs = [ b ];
-	}
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
 
-	if (typeof patterns === 'string') {
-		var p = patterns;
-		patterns = [ p ];
-	}
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
 
-	if (typeof options === 'undefined') options = {};
+    if (typeof options === 'undefined') options = {};
 
-	var files2rm = yield module.exports.operateAsync(basedirs, patterns);
-	var results = "";
-	for (var torm of files2rm) {
-		var fn2Remove = path.join(torm.basedir, torm.path);
-        var stats = yield fs.statAsync(fn2Remove);
+    var files2rm = yield module.exports.operateAsync(basedirs, patterns);
+    var results = "";
+    for (var torm of files2rm) {
+        var fn2Remove = path.join(torm.basedir, torm.path);
+        var stats = yield fs.stat(fn2Remove);
         if (! stats.isFile()) continue;
-		yield fs.unlinkAsync(fn2Remove);
-		if (options.verbose) {
-			results += `RM ${fn2Remove}
+        yield fs.unlink(fn2Remove);
+        if (options.verbose) {
+            results += `RM ${fn2Remove}
 `;
-		}
-	}
-	return results;
+        }
+    }
+    return results;
 });
 
 /**
@@ -255,119 +279,119 @@ module.exports.rmAsync = co.wrap(function* (basedirs, patterns, options) {
  */
 
 module.exports.rm = function(basedirs, patterns, options, done) {
-	module.exports.rmAsync(basedirs, patterns, options)
-	.then(results => { done(undefined, results); })
-	.catch(err => { done(err); });
+    module.exports.rmAsync(basedirs, patterns, options)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 module.exports.chmodAsync = co.wrap(function* (basedirs, patterns, newmode, options) {
-	if (typeof basedirs === 'string') {
-		var b = basedirs;
-		basedirs = [ b ];
-	}
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
 
-	if (typeof patterns === 'string') {
-		var p = patterns;
-		patterns = [ p ];
-	}
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
 
-	if (typeof newmode === 'string') newmode = parseInt(newmode, 8);
-	if (typeof newmode !== 'number') {
-		throw new Error('incorrect newmode given '+ util.inspect(newmode));
-	}
+    if (typeof newmode === 'string') newmode = parseInt(newmode, 8);
+    if (typeof newmode !== 'number') {
+        throw new Error('incorrect newmode given '+ util.inspect(newmode));
+    }
 
-	if (typeof options === 'undefined') options = {};
+    if (typeof options === 'undefined') options = {};
 
-	var files2chmod = yield module.exports.operateAsync(basedirs, patterns);
-	var results = '';
-	for (var tochmod of files2chmod) {
-		var fn2chmod = path.join(tochmod.basedir, tochmod.path);
-		yield fs.chmodAsync(fn2chmod, newmode);
-		if (options.verbose) {
-			results += `CHMOD ${fn2chmod} ${newmode.toString(8)}
+    var files2chmod = yield module.exports.operateAsync(basedirs, patterns);
+    var results = '';
+    for (var tochmod of files2chmod) {
+        var fn2chmod = path.join(tochmod.basedir, tochmod.path);
+        yield fs.chmod(fn2chmod, newmode);
+        if (options.verbose) {
+            results += `CHMOD ${fn2chmod} ${newmode.toString(8)}
 `;
-		}
-	}
-	return results;
+        }
+    }
+    return results;
 });
 
 module.exports.chmod = function(basedirs, patterns, newmode, options, done) {
-	module.exports.chmodAsync(basedirs, patterns, newmode, options)
-	.then(results => { done(undefined, results); })
-	.catch(err => { done(err); });
+    module.exports.chmodAsync(basedirs, patterns, newmode, options)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 module.exports.chownAsync = co.wrap(function* (basedirs, patterns, uid, gid, options) {
-	if (typeof basedirs === 'string') {
-		var b = basedirs;
-		basedirs = [ b ];
-	}
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
 
-	if (typeof patterns === 'string') {
-		var p = patterns;
-		patterns = [ p ];
-	}
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
 
-	if (typeof options === 'undefined') options = {};
+    if (typeof options === 'undefined') options = {};
 
-	if (typeof uid === 'string') uid = parseInt(uid);
-	if (typeof gid === 'string') gid = parseInt(gid);
-	if (typeof uid !== 'number' || typeof gid !== 'number') {
-		throw new Error('incorrect uid '+ util.inspect(uid) +' or gid '+ util.inspect(gid) +' given');
-	}
+    if (typeof uid === 'string') uid = parseInt(uid);
+    if (typeof gid === 'string') gid = parseInt(gid);
+    if (typeof uid !== 'number' || typeof gid !== 'number') {
+        throw new Error('incorrect uid '+ util.inspect(uid) +' or gid '+ util.inspect(gid) +' given');
+    }
 
-	var files2chown = yield module.exports.operateAsync(basedirs, patterns);
-	var results = '';
-	for (var tochown of files2chown) {
-		var fn2chown = path.join(tochown.basedir, tochown.path);
-		yield fs.chownAsync(fn2chown, uid, gid);
-		if (options.verbose) {
-			results += `CHOWN ${fn2chown} ${uid} ${gid}
+    var files2chown = yield module.exports.operateAsync(basedirs, patterns);
+    var results = '';
+    for (var tochown of files2chown) {
+        var fn2chown = path.join(tochown.basedir, tochown.path);
+        yield fs.chown(fn2chown, uid, gid);
+        if (options.verbose) {
+            results += `CHOWN ${fn2chown} ${uid} ${gid}
 `;
-		}
-	}
-	return results;
+        }
+    }
+    return results;
 });
 
 module.exports.chown = function(basedirs, patterns, uid, gid, options, done) {
-	module.exports.chownAsync(basedirs, patterns, uid, gid, options)
-	.then(results => { done(undefined, results); })
-	.catch(err => { done(err); });
+    module.exports.chownAsync(basedirs, patterns, uid, gid, options)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 
 module.exports.duAsync = co.wrap(function* (basedirs, patterns, options) {
-	if (typeof basedirs === 'string') {
-		var b = basedirs;
-		basedirs = [ b ];
-	}
+    if (typeof basedirs === 'string') {
+        var b = basedirs;
+        basedirs = [ b ];
+    }
 
-	if (typeof patterns === 'string') {
-		var p = patterns;
-		patterns = [ p ];
-	}
+    if (typeof patterns === 'string') {
+        var p = patterns;
+        patterns = [ p ];
+    }
 
-	if (typeof options === 'undefined') options = {};
+    if (typeof options === 'undefined') options = {};
 
-		var totalsz = 0;
-		var files2du = yield module.exports.operateAsync(basedirs, patterns);
-		var sizes = '';
-		// console.log(util.inspect(files2du));
-		for (var todu of files2du) {
-			var fn2du = path.join(todu.basedir, todu.path);
-			var stats = yield fs.statAsync(fn2du);
-			sizes += `${fn2du} ${stats.size}
+    var totalsz = 0;
+    var files2du = yield module.exports.operateAsync(basedirs, patterns);
+    var sizes = '';
+    // console.log(util.inspect(files2du));
+    for (var todu of files2du) {
+        var fn2du = path.join(todu.basedir, todu.path);
+        var stats = yield fs.stat(fn2du);
+        sizes += `${fn2du} ${stats.size}
 `;
-			totalsz += stats.size;
-		}
-		return options.verbose ? (`${sizes}
+        totalsz += stats.size;
+    }
+    return options.verbose ? (`${sizes}
 TOTAL ${totalsz}`) : totalsz;
 });
 
 module.exports.du = function(basedirs, patterns, options, done) {
-	module.exports.duAsync(basedirs, patterns, options)
-	.then(results => { done(undefined, results); })
-	.catch(err => { done(err); });
+    module.exports.duAsync(basedirs, patterns, options)
+    .then(results => { done(undefined, results); })
+    .catch(err => { done(err); });
 };
 
 // TODO:
