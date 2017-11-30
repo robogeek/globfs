@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/robogeek/globfs.git"
   },
-  "version": "0.3.0",
+  "version": "0.3.1",
   "engines": {
     "node": ">=6.5.0"
   },
@@ -21,7 +21,7 @@
   "dependencies": {
     "async": "*",
     "commander": "*",
-    "fs-extra": "*",
+    "fs-extra": ">=4.x",
     "glob": "*",
     "co": "*"
   }
