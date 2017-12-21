@@ -2,7 +2,7 @@
 /**
  * globfs
  *
- * Copyright 2015-2016 David Herron
+ * Copyright 2015-2017 David Herron
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@
 'use strict';
 
 const glob  = require('glob');
-const async = require('async');
 const fs    = require('fs-extra');
 const util  = require('util');
 const path  = require('path');
@@ -33,7 +32,7 @@ function doTracing() {
          process.env.GLOBFS_TRACE === "1"
       || process.env.GLOBFS_TRACE === "yes"
       || process.env.GLOBFS_TRACE === "true"
-  ));
+     ));
 }
 
 module.exports.operateAsync = co.wrap(function* (basedirs, patterns, operation) {
@@ -76,34 +75,36 @@ module.exports.operateAsync = co.wrap(function* (basedirs, patterns, operation) 
                     op_start = new Date();
                 }
                 let fresult = yield new Promise((resolve, reject) => {
-                    operation(basedir, fpath, (errOp, result) => {
-                        // console.log(`operateAsync finished operation result= ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
-                        let op_end = trace ? new Date() : undefined;
-                        let op_elapsed = trace ? (op_end - op_start) : undefined;
-                        if (errOp) {
-                            resolve({
-                                error: errOp,
-                                basedir: basedir,
-                                path: fpath,
-                                fullpath: path.join(basedir, fpath),
-                                start: op_start,
-                                end: op_end,
-                                elapsed: op_elapsed
-                            });
-                        } else if (result) {
-                            resolve({
-                                basedir: basedir,
-                                path: fpath,
-                                fullpath: path.join(basedir, fpath),
-                                result: result,
-                                start: op_start,
-                                end: op_end,
-                                elapsed: op_elapsed
-                            });
-                        }
-                        // If no result given, don't include in results
-                        resolve(null);
-                    });
+                    try {
+                        operation(basedir, fpath, (errOp, result) => {
+                            // console.log(`operateAsync finished operation result= ${basedir} ${fpath} ${util.inspect(errOp)} ${util.inspect(result)}`);
+                            let op_end = trace ? new Date() : undefined;
+                            let op_elapsed = trace ? (op_end - op_start) : undefined;
+                            if (errOp) {
+                                resolve({
+                                    error: errOp,
+                                    basedir: basedir,
+                                    path: fpath,
+                                    fullpath: path.join(basedir, fpath),
+                                    start: op_start,
+                                    end: op_end,
+                                    elapsed: op_elapsed
+                                });
+                            } else if (result) {
+                                resolve({
+                                    basedir: basedir,
+                                    path: fpath,
+                                    fullpath: path.join(basedir, fpath),
+                                    result: result,
+                                    start: op_start,
+                                    end: op_end,
+                                    elapsed: op_elapsed
+                                });
+                            }
+                            // If no result given, don't include in results
+                            resolve(null);
+                        });
+                    } catch (err) { reject(err); }
                 });
                 // console.log(`operateAsync finished loop ${basedir} ${fpath} ${util.inspect(fresult)}`);
                 // console.log(`operateAsync ${util.inspect(files)}`);
@@ -123,8 +124,8 @@ module.exports.operateAsync = co.wrap(function* (basedirs, patterns, operation) 
  */
 module.exports.operate = function(basedirs, patterns, operation, done) {
     module.exports.operateAsync(basedirs, patterns, operation)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 module.exports.findAsync = function(basedirs, patterns) {
@@ -139,12 +140,12 @@ module.exports.findAsync = function(basedirs, patterns) {
     }
 
     return module.exports.operateAsync(basedirs, patterns);
-}
+};
 
 module.exports.find = function(basedirs, patterns, done) {
     module.exports.findAsync(basedirs, patterns)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 module.exports.findSync = function(basedirs, patterns) {
@@ -208,21 +209,28 @@ module.exports.copyAsync = co.wrap(function* (basedirs, patterns, destdir, optio
         yield fs.mkdirs(dirCopyTo);
         results += yield new Promise((resolve, reject) => {
             var rd = fs.createReadStream(fnCopyFrom);
+            /* eslint-disable no-console */
             rd.on("error", function(err) {
-                console.error('createReadStream '+ err);
+                console.error('WARN: createReadStream '+ err);
             });
+            /* eslint-enable no-console */
             var wr = fs.createWriteStream(fnCopyTo);
             wr.on("error", function(err) {
                 // console.error('createWriteStream '+ err);
                 reject(err);
             });
+            /* eslint-disable no-unused-vars */
             wr.on("finish", function(ex) {
                 resolve(options.verbose ? `COPY ${fnCopyFrom} ==> ${fnCopyTo}
 ` : '');
             });
+            /* eslint-enable no-unused-vars */
             rd.pipe(wr);
         });
     }
+
+    flunky furtz;
+
     return results;
 
 });
@@ -237,8 +245,8 @@ module.exports.copyAsync = co.wrap(function* (basedirs, patterns, destdir, optio
 
 module.exports.copy = function(basedirs, patterns, destdir, options, done) {
     module.exports.copyAsync(basedirs, patterns, destdir, options)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 module.exports.rmAsync = co.wrap(function* (basedirs, patterns, options) {
@@ -280,8 +288,8 @@ module.exports.rmAsync = co.wrap(function* (basedirs, patterns, options) {
 
 module.exports.rm = function(basedirs, patterns, options, done) {
     module.exports.rmAsync(basedirs, patterns, options)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 module.exports.chmodAsync = co.wrap(function* (basedirs, patterns, newmode, options) {
@@ -317,8 +325,8 @@ module.exports.chmodAsync = co.wrap(function* (basedirs, patterns, newmode, opti
 
 module.exports.chmod = function(basedirs, patterns, newmode, options, done) {
     module.exports.chmodAsync(basedirs, patterns, newmode, options)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 module.exports.chownAsync = co.wrap(function* (basedirs, patterns, uid, gid, options) {
@@ -355,8 +363,8 @@ module.exports.chownAsync = co.wrap(function* (basedirs, patterns, uid, gid, opt
 
 module.exports.chown = function(basedirs, patterns, uid, gid, options, done) {
     module.exports.chownAsync(basedirs, patterns, uid, gid, options)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 
@@ -390,8 +398,8 @@ TOTAL ${totalsz}`) : totalsz;
 
 module.exports.du = function(basedirs, patterns, options, done) {
     module.exports.duAsync(basedirs, patterns, options)
-    .then(results => { done(undefined, results); })
-    .catch(err => { done(err); });
+        .then(results => { done(undefined, results); })
+        .catch(err => { done(err); });
 };
 
 // TODO:

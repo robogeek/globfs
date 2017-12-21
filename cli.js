@@ -4,7 +4,7 @@
 /**
  * cli
  *
- * Copyright 2015-2016 David Herron
+ * Copyright 2015-2017 David Herron
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,90 +19,79 @@
  *  limitations under the License.
  */
 
-var program   = require('commander');
-var globfs    = require('./index');
-var util      = require('util');
-
 'use strict';
+
+const program   = require('commander');
+const globfs    = require('./index');
 
 process.title = 'globfs';
 program.version('0.2.0');
 
+/* eslint-disable no-console */
+
 program
     .command('find <srcdir> [patterns...]')
     .description('Find files based on the pattern(s)')
-    .action((srcdir, patterns) => {
+    .action(async (srcdir, patterns) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.findAsync(srcdir, patterns)
-        .then(results => { console.log(results); })
-        .catch(err => { console.error(err.stack); });
+        console.log(await globfs.findAsync(srcdir, patterns));
     });
 
 program
     .command('copy <srcdir> <destdir> [patterns...]')
     .option('-v, --verbose', 'Verbose output')
     .description('Copy stuff from one directory to another')
-    .action((srcdir, destdir, patterns, options) => {
+    .action(async (srcdir, destdir, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.copyAsync(srcdir, patterns, destdir, options)
-        .then(results => { console.log(results); })
-        .catch(err => { console.error(err.stack); });
+        console.log(await globfs.copyAsync(srcdir, patterns, destdir, options));
     });
 
 program
     .command('rm <dir> [patterns...]')
     .option('-v, --verbose', 'Verbose output')
     .description('Delete stuff in a directory')
-    .action((dir, patterns, options) => {
+    .action(async (dir, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.rmAsync(dir, patterns, options)
-        .then(results => { console.log(results); })
-        .catch(err => { console.error(err.stack); });
+        console.log(await globfs.rmAsync(dir, patterns, options));
     });
 
 program
     .command('chmod <dir> <newmode> [patterns...]')
     .option('-v, --verbose', 'Verbose output')
     .description('Change permissions of stuff in a directory')
-    .action((dir, newmode, patterns, options) => {
+    .action(async (dir, newmode, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.chmodAsync(dir, patterns, newmode, options)
-        .then(results => { console.log(results); })
-        .catch(err => { console.error(err.stack); });
+        console.log(await globfs.chmodAsync(dir, patterns, newmode, options));
     });
 
 program
     .command('chown <dir> <uid> <gid> [patterns..]')
     .option('-v, --verbose', 'Verbose output')
     .description('Change ownership of stuff in a directory')
-    .action((dir, uid, gid, patterns, options) => {
+    .action(async (dir, uid, gid, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.chownAsync(dir, patterns, uid, gid, options)
-        .then(results => { console.log(results); })
-        .catch(err => { console.error(err.stack); });
+        console.log(await globfs.chownAsync(dir, patterns, uid, gid, options));
     });
 
 program
     .command('du <dir> [patterns..]')
     .option('-v, --verbose', 'Verbose output')
     .description('Disk utilization of stuff in a directory')
-    .action((dir, patterns, options) => {
+    .action(async (dir, patterns, options) => {
         if (!patterns || patterns.length <= 0) {
             patterns = [ '**/*' ];
         }
-        globfs.duAsync(dir, patterns, options)
-        .then(results => { console.log(results); })
-        .catch(err => { console.error(err.stack); });
+        console.log(await globfs.duAsync(dir, patterns, options));
     });
 
 program.parse(process.argv);
