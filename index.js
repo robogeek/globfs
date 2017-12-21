@@ -229,8 +229,6 @@ module.exports.copyAsync = co.wrap(function* (basedirs, patterns, destdir, optio
         });
     }
 
-    flunky furtz;
-
     return results;
 
 });

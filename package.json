@@ -15,7 +15,7 @@
     "lint": "eslint index.js cli.js",
     "prepublishOnly": "npm run lint"
   },
-  "version": "0.3.2",
+  "version": "0.3.3",
   "engines": {
     "node": ">=6.5.0"
   },
