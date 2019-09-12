@@ -1,0 +1,17 @@
+{
+  "name": "globfs-test",
+  "version": "1.0.0",
+  "description": "Test suite for globfs",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha ./index",
+    "posttest": "rm -rf n2all n2js",
+    "setup": "npm install && cd .. && npm install"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.2.0"
+  }
+}
