@@ -12,8 +12,10 @@
     "url": "https://github.com/robogeek/globfs.git"
   },
   "scripts": {
-    "lint": "eslint index.js cli.js",
-    "prepublishOnly": "npm run lint"
+      "setup-test": "cd test && npm run setup",
+      "test": "cd test && npm run test",
+      "lint": "eslint index.js cli.js",
+      "prepublishOnly": "npm run lint"
   },
   "version": "0.3.3",
   "engines": {
