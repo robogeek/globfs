@@ -15,7 +15,6 @@
       "setup-test": "cd test && npm run setup",
       "test": "cd test && npm run test",
       "lint": "eslint index.js cli.js",
-      "prepublishOnly": "npm run lint",
       "trypublish": "npm publish || true"
   },
   "version": "0.3.3",
