@@ -25,4 +25,4 @@ jobs:
       run: npm run trypublish
       env:
         CI: true
-        NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        NPM_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
