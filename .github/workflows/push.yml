@@ -23,4 +23,5 @@ jobs:
         npm run test
         npm run trypublish
       env:
+        CI: true
         NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
