@@ -17,7 +17,7 @@
       "lint": "eslint index.js cli.js",
       "trypublish": "npm publish || true"
   },
-  "version": "0.3.3",
+  "version": "0.5.0",
   "engines": {
     "node": ">=12.0"
   },
